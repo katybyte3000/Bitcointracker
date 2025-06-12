@@ -1,3 +1,5 @@
 *.csv
 *.env
 Webscrapping_Tests.ipynb
+\package
+*.zip
