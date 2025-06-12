@@ -3,3 +3,4 @@
 Webscrapping_Tests.ipynb
 \package
 *.zip
+.streamlit
