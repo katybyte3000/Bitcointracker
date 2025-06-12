@@ -2,40 +2,49 @@ import streamlit as st
 import psycopg
 import pandas as pd
 
-dbconn = st.secrets["DBCONN"]
+st.title("BITCOIN TRACKER")
+st.write("Dies ist meine erste Streamlit-App in VS Code.")
 
-@st.cache_data(ttl=600)
-def load_api_data():
-    query = "SELECT date, value FROM api_data ORDER BY date"
-    with psycopg.connect(dbconn) as conn:
-        with conn.cursor() as cur:
-            cur.execute(query)
-            rows = cur.fetchall()
-            # Spaltennamen aus Cursor Beschreibung holen
-            cols = [desc[0] for desc in cur.description]
-    return pd.DataFrame(rows, columns=cols)
+# Funktion für Bitcoin-Daten
+def get_bitcoin_data(): 
+    dbconn = st.secrets["DBCONN"]
+    conn = psycopg.connect(dbconn)
+    cur = conn.cursor()
 
-@st.cache_data(ttl=600)
-def load_news():
-    query = "SELECT date, title FROM news_ticker ORDER BY date DESC LIMIT 5"
-    with psycopg.connect(dbconn) as conn:
-        with conn.cursor() as cur:
-            cur.execute(query)
-            rows = cur.fetchall()
-            cols = [desc[0] for desc in cur.description]
-    return pd.DataFrame(rows, columns=cols)
+    cur.execute("SELECT timestamp, close FROM api_data ORDER BY timestamp;")
+    rows = cur.fetchall()
+    colnames = [desc.name for desc in cur.description]
+    conn.close()
 
-api_df = load_api_data()
-news_df = load_news()
+    df = pd.DataFrame(rows, columns=colnames)
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    return df
 
-api_df["date"] = pd.to_datetime(api_df["date"])
-api_df = api_df.set_index("date")
+# Funktion für News-Ticker
+def get_news():
+    dbconn = st.secrets["DBCONN"]
+    conn = psycopg.connect(dbconn)
+    cur = conn.cursor()
 
-st.title("Bitcoin Daten und News")
-st.subheader("Bitcoin Wertentwicklung")
-st.line_chart(api_df["value"])
+    cur.execute("SELECT date, title FROM news_ticker ORDER BY date DESC LIMIT 5;")
+    rows = cur.fetchall()
+    colnames = [desc.name for desc in cur.description]
+    conn.close()
 
-st.subheader("Neueste News")
+    df = pd.DataFrame(rows, columns=colnames)
+    df["date"] = pd.to_datetime(df["date"])
+    return df
+
+# Daten laden
+btc_df = get_bitcoin_data()
+news_df = get_news()
+
+# Linien-Diagramm anzeigen
+st.subheader("Bitcoin Kursverlauf (Close-Preis)")
+btc_df = btc_df.set_index("timestamp")
+st.line_chart(btc_df["close"])
+
+# News-Ticker anzeigen
+st.subheader("Neueste Bitcoin News")
 for _, row in news_df.iterrows():
-    date_str = pd.to_datetime(row["date"]).strftime("%d.%m.%Y")
-    st.markdown(f"**{date_str}** – {row['title']}")
+    st.markdown(f"**{row['date'].strftime('%d.%m.%Y')}** – {row['title']}")
