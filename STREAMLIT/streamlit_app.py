@@ -10,12 +10,12 @@ def get_bitcoin_data():
     dbconn = st.secrets["DBCONN"]
     conn = psycopg.connect(dbconn)
     cur = conn.cursor()
-    cur.execute("SELECT timestamp, close FROM api_data ORDER BY timestamp;")
+    cur.execute("SELECT date, close FROM api_data ORDER BY date;")
     rows = cur.fetchall()
     colnames = [desc.name for desc in cur.description]
     conn.close()
     df = pd.DataFrame(rows, columns=colnames)
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    df["date"] = pd.to_datetime(df["date"])
     return df
 
 # Funktion für News-Ticker
@@ -37,7 +37,7 @@ news_df = get_news_data()
 
 # Liniendiagramm
 st.subheader("📈 Bitcoin Kursverlauf (Close-Preis)")
-btc_df = btc_df.set_index("timestamp")
+btc_df = btc_df.set_index("date")
 st.line_chart(btc_df["close"])
 
 # News-Ticker
