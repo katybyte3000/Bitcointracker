@@ -2,26 +2,36 @@ import streamlit as st
 import psycopg
 import pandas as pd
 
-st.title("BITCOIN TRACKER")
-st.write("Dies ist meine erste Streamlit-App in VS Code.")
+dbconn = st.secrets["DBCONN"]
 
-def get_bitcoin_data(): 
-    dbconn = st.secrets["DBCONN"]
-    conn = psycopg.connect(dbconn)
-    cur = conn.cursor()
+@st.cache_data(ttl=600)
+def load_api_data():
+    query = "SELECT date, value FROM api_data ORDER BY date"
+    with psycopg.connect(dbconn) as conn:
+        df = pd.read_sql(query, conn)
+    return df
 
-    cur.execute("SELECT * FROM api_data;")
-    rows = cur.fetchall()
-    colnames = [desc.name for desc in cur.description]
-    conn.close()
+@st.cache_data(ttl=600)
+def load_news():
+    query = "SELECT date, title FROM news_ticker ORDER BY date DESC LIMIT 5"
+    with psycopg.connect(dbconn) as conn:
+        df = pd.read_sql(query, conn)
+    return df
 
-    return rows, colnames
+# Daten laden
+api_df = load_api_data()
+news_df = load_news()
 
+# Datum als Index setzen für Linienplot
+api_df["date"] = pd.to_datetime(api_df["date"])
+api_df = api_df.set_index("date")
 
-# Daten abrufen
-rows, columns = get_bitcoin_data()
+st.title("Bitcoin Daten und News")
 
-# Ausgabe in der App anzeigen
-st.title("Bitcoin Daten")
-st.write("Anzahl Datensätze:", len(rows))
-st.dataframe(rows, column_config={col: None for col in columns})
+st.subheader("Bitcoin Wertentwicklung")
+st.line_chart(api_df["value"])
+
+st.subheader("Neueste News")
+for idx, row in news_df.iterrows():
+    date_str = pd.to_datetime(row["date"]).strftime("%d.%m.%Y")
+    st.markdown(f"**{date_str}** – {row['title']}")
